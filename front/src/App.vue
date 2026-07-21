@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
 import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay'
+import { Note, Chord, Scale } from "tonal"
 
 // Dynamically determine the backend URL
 const getBackendUrl = () => {
@@ -47,6 +48,8 @@ const inputSource = ref('file') // 'file' or 'youtube'
 const youtubeUrl = ref('') // YouTube video URL
 
 const isProcessing = ref(false)
+const animationProgress = ref(0) // Percentage of notes animated in real-time
+const currentAnimatingNoteIndex = ref(0) // Current index of the note being animated
 const errorMessage = ref('')
 const successMessage = ref('')
 const progress = ref(0)
@@ -102,11 +105,17 @@ const animateNotesInRealtime = async () => {
   isAnimatingRealtime.value = true
   displayedNotes.value = []
   activeFretboardNotes.value = []
+  animationProgress.value = 0
+  currentAnimatingNoteIndex.value = 0
   
   addLog('Iniciando visualización en tiempo real sobre el mástil de guitarra...', 'status')
   
   for (let i = 0; i < notes.value.length; i++) {
     const note = notes.value[i]
+    
+    // Update progress variables
+    currentAnimatingNoteIndex.value = i + 1
+    animationProgress.value = Math.round(((i + 1) / notes.value.length) * 100)
     
     // Add note to display list
     displayedNotes.value.push(note)
@@ -133,6 +142,7 @@ const animateNotesInRealtime = async () => {
   setTimeout(() => {
     activeFretboardNotes.value = []
     isAnimatingRealtime.value = false
+    animationProgress.value = 100
     addLog('¡Visualización en tiempo real completada con éxito!', 'success')
   }, 300)
 }
@@ -256,6 +266,45 @@ const getYouTubeId = (url) => {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
   const match = url.match(regExp)
   return (match && match[2].length === 11) ? match[2] : null
+}
+
+// Analizador de teoría musical usando Tonal.js
+const getDetectedScale = () => {
+  if (notes.value.length === 0) return 'No se han detectado notas aún'
+  
+  // Extraer notas únicas sin octava
+  const uniqueNotes = [...new Set(notes.value.map(n => {
+    return n.pitch.replace(/\d+/, '')
+  }))]
+  
+  if (uniqueNotes.length < 3) {
+    return 'Se necesitan al menos 3 notas únicas para el análisis de escala.'
+  }
+  
+  try {
+    const detected = Scale.detect(uniqueNotes)
+    if (detected && detected.length > 0) {
+      return detected.slice(0, 3).map(s => s.toUpperCase()).join(', ')
+    }
+    return 'Escala exótica o modulación híbrida'
+  } catch (err) {
+    return 'Escala no identificada'
+  }
+}
+
+const getActiveChordName = () => {
+  if (activeFretboardNotes.value.length < 2) return ''
+  
+  try {
+    const pitches = activeFretboardNotes.value.map(n => n.pitch)
+    const detected = Chord.detect(pitches)
+    if (detected && detected.length > 0) {
+      return detected[0]
+    }
+    return 'Acorde Complejo'
+  } catch (err) {
+    return ''
+  }
 }
 
 // Submit for transcription
@@ -607,6 +656,8 @@ const downloadXml = () => {
                 <option value="auto">Selección Automática (Recomendado)</option>
                 <option value="monophonic">Monofónico (librosa pYIN - Solos/Líneas simples)</option>
                 <option value="polyphonic">Polifónico (basic-pitch - Acordes/Arpegios complejos)</option>
+                <option value="guitar_wav2vec">🤖 Avanzado - Guitar-wav2vec (Preentrenamiento SSL + RLHF)</option>
+                <option value="consensus">🎯 Consenso - Doble Revisión Inteligente (Máxima Exactitud)</option>
               </select>
             </div>
           </div>
@@ -734,6 +785,16 @@ const downloadXml = () => {
               </button>
             </div>
           </div>
+
+          <!-- Análisis de Teoría Musical con Tonal.js -->
+          <div class="fretboard-theory-panel" style="display: flex; gap: 16px; margin-bottom: 16px; padding: 10px 14px; background: rgba(170, 59, 255, 0.08); border-radius: 8px; border: 1px dashed rgba(170, 59, 255, 0.3); align-items: center; flex-wrap: wrap;">
+            <div style="flex: 1; font-size: 13px; color: var(--text-h); min-width: 250px;">
+              🎼 <strong>Análisis de Escala:</strong> <span style="color: #aa3bff; font-weight: 700;">{{ getDetectedScale() }}</span>
+            </div>
+            <div v-if="activeFretboardNotes.length >= 2" style="font-size: 12px; color: white; font-weight: 700; background: #aa3bff; padding: 4px 10px; border-radius: 4px; box-shadow: 0 0 8px rgba(170, 59, 255, 0.4);">
+              🎵 Acorde Activo: {{ getActiveChordName() }}
+            </div>
+          </div>
           
           <div class="guitar-neck-wrapper">
             <div class="guitar-neck">
@@ -769,6 +830,21 @@ const downloadXml = () => {
                   </div>
                 </div>
               </div>
+            </div>
+          </div>
+
+          <!-- Real-time Animation Progress Bar -->
+          <div v-if="isAnimatingRealtime" class="animation-progress-container" style="margin-top: 20px; padding: 0 10px;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; color: var(--text-h); margin-bottom: 8px; font-weight: 600;">
+              <span>⚡ Dibujando notas de la tablatura en el mástil...</span>
+              <span>{{ currentAnimatingNoteIndex }} / {{ notes.length }} notas</span>
+            </div>
+            <div class="progress-bar-container" style="height: 10px; border-radius: 6px; background-color: var(--border); overflow: hidden; position: relative; width: 100%;">
+              <div 
+                class="progress-bar-fill" 
+                :style="{ width: animationProgress + '%' }"
+                style="height: 100%; background: linear-gradient(90deg, #10b981 0%, #059669 100%); transition: width 0.1s ease; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);"
+              ></div>
             </div>
           </div>
         </div>

@@ -1,7 +1,35 @@
 import os
+import sys
 import shutil
 import tempfile
 import base64
+
+# Intento de agregar rutas comunes de FFmpeg a PATH en Windows
+if sys.platform == "win32":
+    extra_paths = [
+        r"C:\ffmpeg\bin",
+        r"C:\Program Files\ffmpeg\bin",
+        r"C:\Program Files (x86)\ffmpeg\bin",
+        r"C:\laragon\bin\ffmpeg\bin", # Ruta común de Laragon ffmpeg
+        r"C:\tools\ffmpeg\bin",       # Ruta común de Chocolatey
+    ]
+    path_env = os.environ.get("PATH", "")
+    for p in extra_paths:
+        if os.path.exists(p) and p not in path_env:
+            path_env = p + os.path.pathsep + path_env
+    os.environ["PATH"] = path_env
+
+# Escribir advertencia si FFmpeg no se detecta en Laragon/Uvicorn
+if shutil.which("ffmpeg") is None:
+    try:
+        log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "transcription.log")
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write("\n[WARNING] ⚠️ FFmpeg no se ha detectado en el PATH del sistema para Laragon/FastAPI. "
+                    "Si lo acabas de instalar o agregar, REINICIA por completo Laragon, Uvicorn y tu editor (VS Code) "
+                    "para que el sistema reconozca la nueva variable de entorno.\n")
+    except:
+        pass
+
 from fastapi import FastAPI, UploadFile, File, Form, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
@@ -236,12 +264,6 @@ async def transcribe_youtube(
     temp_dir = tempfile.gettempdir()
     outtmpl = os.path.join(temp_dir, '%(id)s.%(ext)s')
     
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'es-ES,es;q=0.9,en-US;q=0.8,en;q=0.7',
-    }
-    
     ydl_opts_best = {
         'format': 'bestaudio/best',
         'outtmpl': outtmpl,
@@ -253,8 +275,6 @@ async def transcribe_youtube(
         'nocheckcertificate': True,
         'quiet': True,
         'no_warnings': True,
-        'http_headers': headers,
-        'proxy': '', # Forzar conexión directa saltándose proxies del sistema (como 172.16.0.1:8090)
     }
     
     downloaded_path = None
@@ -286,8 +306,6 @@ async def transcribe_youtube(
                 'nocheckcertificate': True,
                 'quiet': True,
                 'no_warnings': True,
-                'http_headers': headers,
-                'proxy': '', # Forzar conexión directa saltándose proxies del sistema (como 172.16.0.1:8090)
             }
             with yt_dlp.YoutubeDL(ydl_opts_fallback) as ydl:
                 extracted_info = ydl.extract_info(youtube_url, download=True)
@@ -361,14 +379,36 @@ async def transcribe_youtube(
             )
 
     except Exception as e:
+        import traceback
+        tb_str = traceback.format_exc()
+        # Escribir el error y la traza de ejecución en transcription.log
+        log_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "transcription.log")
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(f"\n[ERROR] Error durante el procesamiento de YouTube: {repr(e)}\n")
+                f.write(f"[ERROR] Traceback: {tb_str}\n")
+        except:
+            pass
+            
         if downloaded_path and os.path.exists(downloaded_path):
             try:
                 os.remove(downloaded_path)
             except OSError:
                 pass
+                
+        err_detail = str(e) if str(e) else repr(e)
+        if "NoBackendError" in err_detail or "NoBackendError" in tb_str:
+            raise HTTPException(
+                status_code=400,
+                detail="Error al procesar el video de YouTube: El sistema requiere 'FFmpeg' para decodificar "
+                       "formatos de audio comprimidos de YouTube (como webm/m4a). Laragon no ha podido encontrar "
+                       "FFmpeg en el PATH de tu Windows. Por favor, asegúrate de descargar FFmpeg, "
+                       "agregarlo a las variables de entorno de tu sistema, y REINICIAR por completo Laragon y "
+                       "tu IDE/consola para que surta efecto."
+            )
         raise HTTPException(
             status_code=500,
-            detail=f"Error durante el procesamiento del audio de YouTube: {str(e)}"
+            detail=f"Error durante el procesamiento del audio de YouTube: {err_detail}. Traza: {tb_str[:400]}"
         )
 
 

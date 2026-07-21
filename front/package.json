@@ -11,6 +11,7 @@
   "dependencies": {
     "@coderline/alphatab": "^1.8.3",
     "opensheetmusicdisplay": "^2.0.0",
+    "tonal": "^6.4.3",
     "vue": "^3.5.38"
   },
   "devDependencies": {

@@ -34,11 +34,12 @@ def midi_to_note_name(midi_number: int) -> str:
 def detect_pitch_monophonic(y: np.ndarray, sr: int) -> list[dict]:
     """
     Detecta notas en audio monofónico usando el algoritmo PYIN de librosa.
-    Agrupa los frames detectados en notas continuas con tiempos de inicio y duración.
+    Agrupa los frames detectados en notas continuas utilizando detección de onsets
+    para evitar fusionar notas consecutivas idénticas (como tresillos rápidos de la misma nota).
     """
-    # Rango de guitarra estándar: E2 (~82 Hz) a C6 (~1047 Hz)
-    fmin = librosa.note_to_hz('E2')
-    fmax = librosa.note_to_hz('C6')
+    # Rango extendido para soportar afinaciones Drop D / Drop C y guitarras de 7 cuerdas: C2 (~65Hz) a E6 (~1318Hz)
+    fmin = librosa.note_to_hz('C2')
+    fmax = librosa.note_to_hz('E6')
     
     # Ejecutar pYIN
     f0, voiced_flag, voiced_probs = librosa.pyin(
@@ -48,6 +49,10 @@ def detect_pitch_monophonic(y: np.ndarray, sr: int) -> list[dict]:
         sr=sr,
         fill_na=None
     )
+    
+    # Detectar inicios de notas (Onsets) con librosa para forzar separación de notas consecutivas idénticas
+    onset_frames = librosa.onset.onset_detect(y=y, sr=sr, hop_length=512)
+    onset_set = set(onset_frames)
     
     # Tiempos de cada frame
     times = librosa.times_like(f0, sr=sr)
@@ -63,11 +68,15 @@ def detect_pitch_monophonic(y: np.ndarray, sr: int) -> list[dict]:
             if note_name is None:
                 continue
             
-            # Si es la misma nota que la anterior, extendemos su duración
-            if current_note == note_name:
+            # Verificar si hay un nuevo ataque (onset) detectado físicamente
+            is_new_onset = i > 0 and any((i - offset) in onset_set for offset in [-1, 0, 1])
+            is_not_too_close = current_start is not None and (float(times[i]) - float(current_start)) > 0.12
+            
+            # Si es la misma nota y NO hay un nuevo ataque físico, extendemos la duración de la nota actual
+            if current_note == note_name and not (is_new_onset and is_not_too_close):
                 pass
             else:
-                # Si había otra nota antes, la guardamos
+                # Si había otra nota antes (de diferente pitch o con un nuevo ataque), la guardamos
                 if current_note is not None and current_start is not None:
                     duration = float(times[i]) - float(current_start)
                     if duration >= 0.05:  # Filtro mínimo de duración

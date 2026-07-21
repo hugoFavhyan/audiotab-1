@@ -29,10 +29,12 @@ def generate_gp5(notes: list[dict], title: str = "Transcripción Automática", b
     Genera un archivo binario GuitarPro (.gp5) a partir de la lista de notas digitadas.
     Retorna los bytes del archivo generado.
     """
+    effective_bpm = bpm if bpm > 0.0 else 120.0
+    
     # 1. Inicializar canción y metadatos
     song = guitarpro.Song()
     song.title = title
-    song.tempo = int(round(bpm)) if bpm > 0 else 120
+    song.tempo = int(round(effective_bpm))
     
     # Asegurar que haya al menos un track
     if not song.tracks:
@@ -51,8 +53,8 @@ def generate_gp5(notes: list[dict], title: str = "Transcripción Automática", b
     
     # Convertir tiempos a beats absolutos (1.0 = una negra / quarter note)
     for n in notes_sorted:
-        n["start_beat"] = n["start_time"] * (bpm / 60.0)
-        n["dur_beat"] = n["duration"] * (bpm / 60.0)
+        n["start_beat"] = n["start_time"] * (effective_bpm / 60.0)
+        n["dur_beat"] = n["duration"] * (effective_bpm / 60.0)
         
     # Agrupar notas por posición de inicio para soportar polifonía (acordes en el mismo beat)
     # Usaremos una tolerancia pequeña para agrupar notas simultáneas (arpegios/acordes imperfectos)

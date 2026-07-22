@@ -149,19 +149,45 @@ def generate_musicxml(notes: list[dict], title: str = "Transcripción Automátic
     return score
 
 
-def post_process_tablature(xml_content: str) -> str:
+def post_process_tablature(xml_content: str, notes_sorted: list[dict] | None = None) -> str:
     """
     Busca de forma dinámica la parte 'Tablatura' en el string de XML generado por music21 y reemplaza su clave por
     un bloque de clave TAB y staff-details de 6 líneas con afinación estándar (Mi La Re Sol Si Mi).
     Esto es necesario para que visualizadores como OpenSheetMusicDisplay o AlphaTab lo interpreten
     como tablatura de guitarra real con líneas y trastes, en lugar de un pentagrama clásico.
+    Además, inyecta la información de cuerda y traste (<technical><fret> y <string>) en todas las notas de acordes,
+    ya que music21 tiene una limitación conocida donde omite la notación técnica en notas agrupadas (Chord notes).
     """
-    # 1. Buscar dinámicamente el ID de parte basándose en el nombre de la parte "Tablatura"
+    # 1. Re-ordenar y aplanar las notas para asociar una a una con los tags <note> en el XML secuencialmente
+    flat_guitar_notes = []
+    if notes_sorted:
+        notes_sorted_for_flat = sorted(notes_sorted, key=lambda x: x["start_time"])
+        grouped_events = []
+        for note_data in notes_sorted_for_flat:
+            placed = False
+            for event_group in grouped_events:
+                if abs(event_group[0]["start_time"] - note_data["start_time"]) < 0.03:
+                    event_group.append(note_data)
+                    placed = True
+                    break
+            if not placed:
+                grouped_events.append([note_data])
+                
+        for event_group in grouped_events:
+            if len(event_group) == 1:
+                flat_guitar_notes.append(event_group[0])
+            else:
+                # Ordenar igual que en generate_musicxml (de graves a agudas)
+                event_group_sorted = sorted(event_group, key=lambda x: x.get("frequency", librosa.note_to_hz(x["pitch"]) if "librosa" in globals() else 100.0))
+                for n_data in event_group_sorted:
+                    flat_guitar_notes.append(n_data)
+
+    # 2. Buscar dinámicamente el ID de parte basándose en el nombre de la parte "Tablatura"
     match = re.search(r'<score-part id="([^"]+)">\s*<part-name>[^<]*Tablatura[^<]*</part-name>', xml_content, re.IGNORECASE)
     if match:
         part_id = match.group(1)
     else:
-        # 2. Si no coincide, buscar el ID de la primera parte de forma genérica en el part-list
+        # Si no coincide, buscar el ID de la primera parte de forma genérica en el part-list
         part_match = re.search(r'<score-part id="([^"]+)">', xml_content)
         if part_match:
             part_id = part_match.group(1)
@@ -171,7 +197,7 @@ def post_process_tablature(xml_content: str) -> str:
     part_tag = f'<part id="{part_id}">'
     part_start_idx = xml_content.find(part_tag)
     if part_start_idx == -1:
-        # 3. Si por alguna razón el ID de parte no coincide, buscar cualquier tag de <part id="...">
+        # Si por alguna razón el ID de parte no coincide, buscar cualquier tag de <part id="...">
         part_any_match = re.search(r'<part id="([^"]+)">', xml_content)
         if part_any_match:
             part_tag = part_any_match.group(0)
@@ -228,5 +254,45 @@ def post_process_tablature(xml_content: str) -> str:
     clef_rel_end = clef_end - part_start_idx
     
     part_content_replaced = part_content[:clef_rel_start] + tab_clef_and_details + part_content[clef_rel_end:]
+    xml_content_clef_replaced = before_part + part_content_replaced
+
+    # 3. Post-procesamiento secuencial de notas para inyectar correctamente trastes y cuerdas
+    note_pattern = re.compile(r'<note(.*?)</note>', re.DOTALL)
+    note_index = 0
     
-    return before_part + part_content_replaced
+    def replace_note(match_obj):
+        nonlocal note_index
+        note_body = match_obj.group(1)
+        
+        # Saltar si es un silencio (rest)
+        if '<rest' in note_body:
+            return match_obj.group(0)
+            
+        if note_index >= len(flat_guitar_notes):
+            return match_obj.group(0)
+            
+        n_data = flat_guitar_notes[note_index]
+        note_index += 1
+        
+        string_num = n_data.get("string")
+        fret_num = n_data.get("fret")
+        
+        if string_num is None or fret_num is None:
+            return match_obj.group(0)
+            
+        technical_str = f"""<notations>
+          <technical>
+            <fret>{int(fret_num)}</fret>
+            <string>{int(string_num)}</string>
+          </technical>
+        </notations>"""
+        
+        # Eliminar cualquier <notations>...</notations> previo para evitar duplicados
+        note_body_clean = re.sub(r'<notations>.*?</notations>', '', note_body, flags=re.DOTALL)
+        
+        # Agregar la nueva estructura técnica al final de la nota
+        updated_note_body = note_body_clean.rstrip() + "\n        " + technical_str + "\n      "
+        return f'<note{updated_note_body}</note>'
+        
+    final_processed_xml = note_pattern.sub(replace_note, xml_content_clef_replaced)
+    return final_processed_xml

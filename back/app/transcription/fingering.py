@@ -10,6 +10,7 @@ TUNINGS = {
     "Half-Step Down": {1: 63, 2: 58, 3: 54, 4: 49, 5: 44, 6: 39},  # Eb4, Bb3, Gb3, Db3, Ab2, Eb2
     "Drop C": {1: 62, 2: 57, 3: 53, 4: 48, 5: 43, 6: 36},        # D4, A3, F3, C3, G2, C2
     "Whole-Step Down": {1: 62, 2: 57, 3: 53, 4: 48, 5: 43, 6: 38}, # D4, A3, F3, C3, G2, D2
+    "Open D": {1: 62, 2: 57, 3: 54, 4: 50, 5: 45, 6: 38},          # D4, A3, F#3, D3, A2, D2
 }
 
 MAX_FRETS = 22
@@ -103,6 +104,7 @@ def optimize_fingering(notes: list[dict], tuning: str = "auto") -> list[dict]:
         elif tuning == "half_step_down": tuning_map_key = "Half-Step Down"
         elif tuning == "drop_c": tuning_map_key = "Drop C"
         elif tuning == "whole_step_down": tuning_map_key = "Whole-Step Down"
+        elif tuning == "open_d": tuning_map_key = "Open D"
         
         tuning_name = tuning_map_key
         tuning_map = TUNINGS[tuning_map_key]

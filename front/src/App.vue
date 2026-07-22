@@ -696,10 +696,11 @@ const downloadGp5 = () => {
             <select id="guitar-tuning" v-model="guitarTuning" class="form-control">
               <option value="auto">Auto-detectar (Inteligente)</option>
               <option value="standard">Estándar (E A D G B e)</option>
-              <option value="drop_d">Drop D (D A D G B e)</option>
+              <option value="drop_d">Afinación en RE - Drop D (D A D G B e)</option>
+              <option value="open_d">Afinación en RE Abierto - Open D (D A D F# A d)</option>
+              <option value="whole_step_down">Afinación en RE Estándar - Un tono abajo (D G C F A d)</option>
               <option value="half_step_down">Medio tono abajo (Eb Ab Db Gb Bb eb)</option>
               <option value="drop_c">Drop C (C G C F A d)</option>
-              <option value="whole_step_down">Un tono abajo (D G C F A d)</option>
             </select>
           </div>
 

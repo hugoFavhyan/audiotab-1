@@ -70,7 +70,7 @@ def detect_optimal_tuning(notes: list[dict]) -> tuple[str, dict[int, int]]:
     return best_name, best_map
 
 
-def get_possible_fingerings(midi_pitch: int, tuning_map: dict[int, int] = None) -> list[tuple[int, int]]:
+def get_possible_fingerings(midi_pitch: int, tuning_map: dict[int, int] | None = None) -> list[tuple[int, int]]:
     """
     Retorna todas las combinaciones posibles de (cuerda, traste) para una nota MIDI dada bajo una afinación específica.
     """
@@ -86,7 +86,7 @@ def get_possible_fingerings(midi_pitch: int, tuning_map: dict[int, int] = None) 
     return options
 
 
-def optimize_fingering(notes: list[dict], tuning_map: dict[int, int] = None) -> list[dict]:
+def optimize_fingering(notes: list[dict], tuning: str = "auto") -> list[dict]:
     """
     Asigna a cada nota un par (cuerda, traste) optimizando la comodidad de digitación.
     Utiliza un algoritmo de costo ergonómico con memoria de posición anterior para minimizar saltos y estiramientos.
@@ -94,11 +94,18 @@ def optimize_fingering(notes: list[dict], tuning_map: dict[int, int] = None) -> 
     if not notes:
         return []
         
-    # Si no se provee afinación, la detectamos dinámicamente de las notas
-    if tuning_map is None:
+    # Obtener el mapa de afinación correspondiente
+    if tuning == "auto":
         tuning_name, tuning_map = detect_optimal_tuning(notes)
     else:
-        tuning_name = "Custom/Selected"
+        tuning_map_key = "Standard"
+        if tuning == "drop_d": tuning_map_key = "Drop D"
+        elif tuning == "half_step_down": tuning_map_key = "Half-Step Down"
+        elif tuning == "drop_c": tuning_map_key = "Drop C"
+        elif tuning == "whole_step_down": tuning_map_key = "Whole-Step Down"
+        
+        tuning_name = tuning_map_key
+        tuning_map = TUNINGS[tuning_map_key]
         
     last_fret = None
     last_string = None

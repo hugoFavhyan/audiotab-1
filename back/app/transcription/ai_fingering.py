@@ -1,5 +1,5 @@
 import logging
-from .fingering import get_possible_fingerings, detect_optimal_tuning
+from .fingering import get_possible_fingerings, detect_optimal_tuning, TUNINGS
 
 logger = logging.getLogger("guitar_bert")
 
@@ -101,15 +101,26 @@ class GuitarBERTModel:
             
         return loss
 
-    def transcribe_with_transformer(self, notes: list[dict], style: str = "classic") -> list[dict]:
+    def transcribe_with_transformer(self, notes: list[dict], style: str = "classic", tuning: str = "auto") -> list[dict]:
         """
         Inferencia del Transformer enmascarado para predecir la secuencia de digitación ergonómica óptima.
         """
         if not notes:
             return []
             
-        # Detectar afinación óptima de forma inteligente
-        tuning_name, tuning_map = detect_optimal_tuning(notes)
+        # Obtener el mapa de afinación correspondiente
+        if tuning == "auto":
+            tuning_name, tuning_map = detect_optimal_tuning(notes)
+        else:
+            tuning_map_key = "Standard"
+            if tuning == "drop_d": tuning_map_key = "Drop D"
+            elif tuning == "half_step_down": tuning_map_key = "Half-Step Down"
+            elif tuning == "drop_c": tuning_map_key = "Drop C"
+            elif tuning == "whole_step_down": tuning_map_key = "Whole-Step Down"
+            
+            tuning_name = tuning_map_key
+            tuning_map = TUNINGS[tuning_map_key]
+            
         adapter = self.adapters.get(style, self.adapters["classic"])
         logger.info(f"GuitarBERT-RL: Ejecutando inferencia con el adaptador de estilo [{style.upper()}] bajo afinación [{tuning_name}]...")
         

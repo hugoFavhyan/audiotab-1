@@ -137,7 +137,8 @@ def run_transcription_pipeline(
     power_chords: bool = False,
     demucs_separation: bool = False,
     fingering_algorithm: str = "heuristic",
-    fingering_style: str = "classic"
+    fingering_style: str = "classic",
+    guitar_tuning: str = "auto"
 ) -> tuple[list[dict], str]:
     """
     Ejecuta el pipeline completo de procesamiento de audio para guitarra:
@@ -214,9 +215,9 @@ def run_transcription_pipeline(
         
     # 3. Optimizar digitación (Asignar cuerdas y trastes) - Heurístico vs AI GuitarBERT
     if fingering_algorithm == "guitar_bert":
-        notes_optimized = GuitarBERTModel().transcribe_with_transformer(notes, style=fingering_style)
+        notes_optimized = GuitarBERTModel().transcribe_with_transformer(notes, style=fingering_style, tuning=guitar_tuning)
     else:
-        notes_optimized = optimize_fingering(notes)
+        notes_optimized = optimize_fingering(notes, tuning=guitar_tuning)
     
     # Si el modo quintas está activo, expandimos cada nota optimizada para formar un acorde de quinta física
     if power_chords:

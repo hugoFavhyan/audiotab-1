@@ -1,6 +1,5 @@
-import numpy as np
 import logging
-from .fingering import get_possible_fingerings
+from .fingering import get_possible_fingerings, detect_optimal_tuning
 
 logger = logging.getLogger("guitar_bert")
 
@@ -109,8 +108,10 @@ class GuitarBERTModel:
         if not notes:
             return []
             
+        # Detectar afinación óptima de forma inteligente
+        tuning_name, tuning_map = detect_optimal_tuning(notes)
         adapter = self.adapters.get(style, self.adapters["classic"])
-        logger.info(f"GuitarBERT-RL: Ejecutando inferencia con el adaptador de estilo [{style.upper()}]...")
+        logger.info(f"GuitarBERT-RL: Ejecutando inferencia con el adaptador de estilo [{style.upper()}] bajo afinación [{tuning_name}]...")
         
         last_fret = 0
         last_string = 3  # cuerda D por defecto como inicio neutro
@@ -120,7 +121,7 @@ class GuitarBERTModel:
         # Procesamos la secuencia simulando la probabilidad de atención bidireccional
         for note in notes:
             midi = note["midi"]
-            options = get_possible_fingerings(midi)
+            options = get_possible_fingerings(midi, tuning_map)
             
             if not options:
                 note["string"] = None

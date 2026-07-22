@@ -6,7 +6,7 @@ import { Note, Chord, Scale } from "tonal"
 // Dynamically determine the backend URL
 const getBackendUrl = () => {
   const hostname = window.location.hostname || '127.0.0.1'
-  return `http://${hostname}:8000`
+  return `http://${hostname}:8002`
 }
 
 const apiBaseUrl = ref(getBackendUrl())
@@ -481,6 +481,33 @@ const downloadXml = () => {
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+// Download GuitarPro (.gp5)
+const downloadGp5 = () => {
+  if (!gp5Base64.value) return
+  
+  try {
+    const byteCharacters = atob(gp5Base64.value)
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i)
+    }
+    const byteArray = new Uint8Array(byteNumbers)
+    const blob = new Blob([byteArray], { type: 'application/octet-stream' })
+    
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${title.value.replace(/\s+/g, '_')}.gp5`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } catch (err) {
+    console.error('Error al descargar GP5:', err)
+    errorMessage.value = `Error al descargar el archivo GP5: ${err.message}`
+  }
 }
 </script>
 

@@ -44,6 +44,7 @@ const powerChords = ref(false) // Toggle to automatically expand root notes into
 const useDemucs = ref(false) // Toggle to separate vocals/drums/bass using Demucs
 const fingeringAlgorithm = ref('heuristic') // 'heuristic' or 'guitar_bert'
 const fingeringStyle = ref('classic') // 'classic', 'metal', 'jazz'
+const guitarTuning = ref('auto') // auto, standard, drop_d, half_step_down, drop_c, whole_step_down
 const inputSource = ref('file') // 'file' or 'youtube'
 const youtubeUrl = ref('') // YouTube video URL
 
@@ -422,6 +423,7 @@ const startTranscription = async () => {
   formData.append('demucs_separation', useDemucs.value)
   formData.append('fingering_algorithm', fingeringAlgorithm.value)
   formData.append('fingering_style', fingeringStyle.value)
+  formData.append('guitar_tuning', guitarTuning.value)
 
   const endpoint = inputSource.value === 'youtube' ? 'transcribe_youtube' : 'transcribe'
 
@@ -687,6 +689,18 @@ const downloadGp5 = () => {
                 <option value="consensus">🎯 Consenso - Doble Revisión Inteligente (Máxima Exactitud)</option>
               </select>
             </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 16px;">
+            <label for="guitar-tuning" class="input-label">Afinación de la Guitarra</label>
+            <select id="guitar-tuning" v-model="guitarTuning" class="form-control">
+              <option value="auto">Auto-detectar (Inteligente)</option>
+              <option value="standard">Estándar (E A D G B e)</option>
+              <option value="drop_d">Drop D (D A D G B e)</option>
+              <option value="half_step_down">Medio tono abajo (Eb Ab Db Gb Bb eb)</option>
+              <option value="drop_c">Drop C (C G C F A d)</option>
+              <option value="whole_step_down">Un tono abajo (D G C F A d)</option>
+            </select>
           </div>
 
           <div class="form-group" style="margin-top: 16px;">
@@ -1486,7 +1500,7 @@ export default {
 }
 
 .table-container {
-  overflow-y: auto;
+  overflow: auto;
   max-height: 500px;
   border: 1px solid var(--border);
   border-radius: 8px;

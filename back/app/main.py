@@ -107,6 +107,10 @@ async def transcribe(
     fingering_style: str = Form(
         default="classic",
         description="Estilo de digitaciones para GuitarBERT: 'classic', 'metal' o 'jazz'."
+    ),
+    guitar_tuning: str = Form(
+        default="auto",
+        description="Afinación de la guitarra: 'auto', 'standard', 'drop_d', 'drop_c', etc."
     )
 ):
     """
@@ -144,7 +148,8 @@ async def transcribe(
             power_chords=power_chords,
             demucs_separation=demucs_separation,
             fingering_algorithm=fingering_algorithm,
-            fingering_style=fingering_style
+            fingering_style=fingering_style,
+            guitar_tuning=guitar_tuning
         )
         
         # Eliminar archivo de audio temporal de inmediato para liberar recursos
@@ -253,6 +258,10 @@ async def transcribe_youtube(
     fingering_style: str = Form(
         default="classic",
         description="Estilo de digitaciones para GuitarBERT: 'classic', 'metal' o 'jazz'."
+    ),
+    guitar_tuning: str = Form(
+        default="auto",
+        description="Afinación de la guitarra: 'auto', 'standard', 'drop_d', 'drop_c', etc."
     )
 ):
     """
@@ -335,7 +344,8 @@ async def transcribe_youtube(
             power_chords=power_chords,
             demucs_separation=demucs_separation,
             fingering_algorithm=fingering_algorithm,
-            fingering_style=fingering_style
+            fingering_style=fingering_style,
+            guitar_tuning=guitar_tuning
         )
         
         # Eliminar archivo descargado

@@ -1,0 +1,61 @@
+# Logs
+*.log
+transcription.log
+back/transcription.log
+back/app/transcription/transcription.log
+
+# Node.js / Frontend
+node_modules/
+front/node_modules/
+dist/
+front/dist/
+.npm
+.eslintcache
+
+# Python
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+ENV/
+env/
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+.pip-selfcheck.json
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.project
+.pydevproject
+.settings/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Temp files
+tmp/
+temp/
+*.tmp
+*.bak
